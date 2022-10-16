@@ -7,6 +7,12 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.10"
+fpl = "^0.6.34"
+black = "^22.10.0"
+pylint = "^2.15.4"
+duckdb = "^0.5.1"
+pandas = "^1.5.0"
+duckdb-engine = "^0.6.4"
 
 
 [build-system]
