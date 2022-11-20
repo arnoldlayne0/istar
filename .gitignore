@@ -75,6 +75,7 @@ docs/_build/
 target/
 
 # Jupyter Notebook
+/notebooks
 .ipynb_checkpoints
 
 # IPython
@@ -130,3 +131,4 @@ dmypy.json
 # aux files
 /data
 /db
+/wiki.txt

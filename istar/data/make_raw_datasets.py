@@ -1,4 +1,4 @@
-from typing import List, Union
+from typing import Dict, List, Union
 import logging
 import asyncio
 import aiohttp
@@ -16,6 +16,16 @@ logging.basicConfig(level=logging.INFO)
 def extract_players_current_summaries(players: List) -> pd.DataFrame:
     players_pd = pd.DataFrame(players).rename(columns={"id": "player_id"})
     return players_pd
+
+
+def extract_teams_info(teams: List) -> pd.DataFrame:
+    teams_pd = pd.DataFrame(teams).rename(
+        columns={
+            "id": "team_id",
+            "code": "team_code"
+        }
+    )
+    return teams_pd
 
 
 def extract_player_ids(players_pd: pd.DataFrame) -> List:
@@ -70,6 +80,9 @@ async def main():
         fpl = FPL(session)
         logging.info("Started FPL session")
 
+        curr_fdr = await fpl.FDR()
+        curr_fdr_pd = pd.DataFrame(curr_fdr)
+
         players = await fpl.get_players(return_json=True)
         players_pd = extract_players_current_summaries(players)
         player_ids = extract_player_ids(players_pd)
@@ -79,10 +92,12 @@ async def main():
         player_details = extract_players_histories_and_fixtures(player_summaries)
         players_history_pd, players_fixtures_pd, players_history_past = player_details
         teams = await fpl.get_teams(return_json=True)
-        teams_pd = pd.DataFrame(teams).rename(columns={"id": "team_id"})
+        teams_pd = extract_teams_info(teams)
 
         current_gameweek = get_current_gameweek(players_history_pd)
         logging.info("Writing data for gameweek %s", current_gameweek)
+
+        players_pd = players_pd.assign(gameweek=current_gameweek)
 
         dfs = [
             players_pd,
@@ -90,6 +105,7 @@ async def main():
             players_fixtures_pd,
             players_history_past,
             teams_pd,
+            curr_fdr_pd
         ]
         table_names = [
             "players_current_summary",
@@ -97,6 +113,7 @@ async def main():
             "players_fixtures",
             "players_history_past",
             "teams",
+            "fdr"
         ]
         for df, table_name in zip(dfs, table_names):
             write_to_csv_and_db(df, table_name, engine)
