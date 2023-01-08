@@ -9,10 +9,18 @@ readme = "README.md"
 python = "^3.10"
 fpl = "^0.6.34"
 black = "^22.10.0"
-pylint = "^2.15.4"
 duckdb = "^0.5.1"
 pandas = "^1.5.0"
 duckdb-engine = "^0.6.4"
+sqlescapy = "^1.0.1"
+lxml = "^4.9.2"
+dagster = "^1.1.7"
+gql = {version = ">=3.0.0", extras = ["requests"]}
+dagit = "^1.1.7"
+pip = "^22.3.1"
+dagster-duckdb-pandas = "^0.17.7"
+pandera = "^0.13.4"
+pylint = "^2.15.9"
 
 
 [build-system]
