@@ -85,8 +85,8 @@ class FPLDatasetSchema(pa.SchemaModel):
     opponent_team: Series[pa.typing.Int64]
     total_points: Series[pa.typing.Int64]
     was_home: Series[pa.typing.Bool]
-    team_h_score: Series[pa.typing.Float64] = pa.Field(nullable=True)
-    team_a_score: Series[pa.typing.Float64] = pa.Field(nullable=True)
+    team_h_score: Series[pa.typing.Int64] = pa.Field(nullable=True)
+    team_a_score: Series[pa.typing.Int64] = pa.Field(nullable=True)
     gameweek: Series[pa.typing.Int64] = pa.Field(ge=1, le=38)
     minutes: Series[pa.typing.Int64]
     goals_scored: Series[pa.typing.Int64]
