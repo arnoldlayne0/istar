@@ -35,6 +35,9 @@ async def player_histories(players: pd.DataFrame) -> Output[pd.DataFrame]:
             )
         all_histories_pd = pd.concat(histories)
         all_histories_pd = all_histories_pd.rename(columns={"round": "gameweek"})
+
+        all_histories_pd = all_histories_pd[~all_histories_pd["team_h_score"].isna()]
+
         return Output(
             all_histories_pd,
             metadata={
@@ -110,6 +113,11 @@ def fpl_dataset(
     fpl_dataset_pd = players_to_join.merge(
         player_histories_to_join, on="player_id", how="inner"
     ).merge(teams_to_join, on="team_code", how="inner")
+
+    # explicitly cast some types
+    fpl_dataset_pd["team_h_score"] = fpl_dataset_pd["team_h_score"].astype("Int64")
+    fpl_dataset_pd["team_a_score"] = fpl_dataset_pd["team_a_score"].astype("Int64")
+
     FPLDatasetSchema.validate(fpl_dataset_pd)
     return Output(
         fpl_dataset_pd,
