@@ -1,3 +1,4 @@
+from typing import List
 import pandas as pd
 
 
@@ -32,12 +33,52 @@ CUMUL_FEATURES = [
 ]
 
 
-def add_cumulative_features(players_pd: pd.DataFrame) -> pd.DataFrame:
-    players_pd = players_pd.sort_values(["player_id", "fixture"], ascending=True)
+class Feature:
+    def __init__(self, name: str, func, **kwargs):
+        self.name = name
+        self.kwargs = kwargs
 
-    for feature in CUMUL_FEATURES:
-        players_pd[f"{feature}_cumul"] = players_pd.groupby(["player_id"])[
-            feature
-        ].cumsum(skipna=False)
+    def _compute(self) -> pd.DataFrame:
+        raise NotImplementedError
+    
+    def add_features_to_dataset(self) -> pd.DataFrame:
+        raise NotImplementedError
+    
 
-    return players_pd
+class RollingFeatures(Feature):
+    def __init__(self, dataset: pd.DataFrame, window: int, stats: List):
+        self.dataset = dataset
+        self.window = window
+        self.stats = stats
+
+    def _compute(self) -> pd.DataFrame: 
+        rolling_stats = (
+            self.dataset.sort_values("gameweek", ascending=True)
+                .groupby(["player_id"])
+                .rolling(window=self.window, min_periods=self.window, on="gameweek")[self.stats]
+                .mean()
+                .reset_index()
+                .rename(columns={stat: f"{stat}_rolling_{self.window}" for stat in self.stats})
+        )
+        return rolling_stats
+    
+    def add_features_to_dataset(self) -> pd.DataFrame:
+        features = self._compute()
+        return self.dataset.merge(features, on=["player_id", "gameweek"])
+    
+
+class CumulativeFeatures(Feature):
+    def __init__(self, dataset: pd.DataFrame, stats: List):
+        self.dataset = dataset
+        self.stats = stats
+
+    def _compute(self) -> pd.DataFrame: 
+        cumulative_stats = (
+            self.dataset.groupby('player_id', sort=False)[self.stats]
+            .transform(lambda x: x.expanding().mean())
+        )
+        return cumulative_stats
+    
+    def add_features_to_dataset(self) -> pd.DataFrame:
+        features = self._compute()
+        return self.dataset.join(features, rsuffix="_cumulative")

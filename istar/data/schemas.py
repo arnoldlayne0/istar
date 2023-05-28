@@ -17,6 +17,7 @@ COLUMNS_FROM_PLAYER_HISTORIES_TO_FPL_DATASET = [
     "opponent_team",
     "total_points",
     "was_home",
+    "kickoff_time",
     "team_h_score",
     "team_a_score",
     "gameweek",
@@ -81,6 +82,14 @@ class FDRSchema(pa.SchemaModel):
 
 
 class FPLDatasetSchema(pa.SchemaModel):
+    """
+    Some columns are somewhat problematic:
+    - now_cost and selected_by_percent give the latest values even for past gameweeks
+      because the dataset set is overwritten each time
+      (and gets those values from the players dataset)
+    - chance of playing values are often null, not sure if the problem is when they get updated?
+    """
+
     player_id: Series[pa.typing.Int64]
     opponent_team: Series[pa.typing.Int64]
     total_points: Series[pa.typing.Int64]

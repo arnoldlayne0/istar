@@ -2,6 +2,8 @@ from dagster import asset, AssetIn, Output
 import pandas as pd
 from fpl import FPL
 import aiohttp
+
+from istar.data.features import RollingFeatures, CumulativeFeatures
 from istar.data.schemas import FPLDatasetSchema, COLUMNS_TO_FPL_DATASET
 
 
@@ -37,6 +39,9 @@ async def player_histories(players: pd.DataFrame) -> Output[pd.DataFrame]:
         all_histories_pd = all_histories_pd.rename(columns={"round": "gameweek"})
 
         all_histories_pd = all_histories_pd[~all_histories_pd["team_h_score"].isna()]
+        all_histories_pd = all_histories_pd.drop_duplicates(
+            subset=["player_id", "gameweek"], keep="first"
+        )
 
         return Output(
             all_histories_pd,
@@ -88,6 +93,7 @@ async def teams() -> Output[pd.DataFrame]:
 
 @asset
 async def fdr() -> Output[pd.DataFrame]:
+    # no history is saved, can be recalculated based on player history instead
     async with aiohttp.ClientSession() as session:
         fpl_session = FPL(session)
         fdr_json = await fpl_session.FDR()
@@ -126,3 +132,26 @@ def fpl_dataset(
             "num_cols": fpl_dataset_pd.shape[1],
         },
     )
+
+
+@asset(
+    ins={
+        "fpl_dataset": AssetIn("fpl_dataset"),
+    }
+)
+def training_data(fpl_dataset: pd.DataFrame) -> Output[pd.DataFrame]:
+    """Create training data from the FPL datasets."""
+    # Add rolling features
+    rolling_features = RollingFeatures(dataset=fpl_dataset, window=3, stats=["total_points"])
+    training_data_pd = rolling_features.add_features_to_dataset()
+    # Add cumulative features
+    cumulative_features = CumulativeFeatures(dataset=training_data_pd, stats=["total_points"])
+    training_data_pd = cumulative_features.add_features_to_dataset()
+
+    return Output(
+        training_data_pd,
+        metadata={
+            "num_rows": training_data_pd.shape[0],
+            "num_columns": training_data_pd.shape[1]
+            }
+        )

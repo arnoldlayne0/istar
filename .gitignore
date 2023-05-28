@@ -133,3 +133,6 @@ dmypy.json
 /db
 /wiki.txt
 /.DS_Store
+
+# temp dagit files
+tmp*/
