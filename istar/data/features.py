@@ -82,3 +82,17 @@ class CumulativeFeatures(Feature):
     def add_features_to_dataset(self) -> pd.DataFrame:
         features = self._compute()
         return self.dataset.join(features, rsuffix="_cumulative")
+
+    def add_rolling_mean_to_df(df, stat, n, reverse=False):
+        ascending = not reverse
+        if reverse:
+            postfix = '_future'
+        else:
+            postfix = ''
+        rolling_stat = (
+            df
+            .sort_values('gameweek', ascending=ascending)
+            .groupby('player_id', as_index=False)
+            .rolling(window=n, min_periods=n, on='gameweek')[stat].mean()
+            .reset_index().rename(columns={stat: f"mean_{stat}_n{n}{postfix}"}))
+        return df.merge(rolling_stat, on=['player_id', 'gameweek'])

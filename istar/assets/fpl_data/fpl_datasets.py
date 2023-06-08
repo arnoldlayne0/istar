@@ -3,6 +3,7 @@ import pandas as pd
 from fpl import FPL
 import aiohttp
 
+from istar.assets.fpl_data.training_data import TrainingData
 from istar.data.features import RollingFeatures, CumulativeFeatures
 from istar.data.schemas import FPLDatasetSchema, COLUMNS_TO_FPL_DATASET
 
@@ -128,6 +129,7 @@ def fpl_dataset(
     return Output(
         fpl_dataset_pd,
         metadata={
+            # list missing gameweeks
             "num_rows": fpl_dataset_pd.shape[0],
             "num_cols": fpl_dataset_pd.shape[1],
         },
@@ -141,12 +143,8 @@ def fpl_dataset(
 )
 def training_data(fpl_dataset: pd.DataFrame) -> Output[pd.DataFrame]:
     """Create training data from the FPL datasets."""
-    # Add rolling features
-    rolling_features = RollingFeatures(dataset=fpl_dataset, window=3, stats=["total_points"])
-    training_data_pd = rolling_features.add_features_to_dataset()
-    # Add cumulative features
-    cumulative_features = CumulativeFeatures(dataset=training_data_pd, stats=["total_points"])
-    training_data_pd = cumulative_features.add_features_to_dataset()
+    td = TrainingData(fpl_dataset=fpl_dataset)
+    training_data_pd = td.get_training_dataset()
 
     return Output(
         training_data_pd,
@@ -155,3 +153,4 @@ def training_data(fpl_dataset: pd.DataFrame) -> Output[pd.DataFrame]:
             "num_columns": training_data_pd.shape[1]
             }
         )
+
