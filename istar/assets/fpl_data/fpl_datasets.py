@@ -4,7 +4,6 @@ from fpl import FPL
 import aiohttp
 
 from istar.assets.fpl_data.training_data import TrainingData
-from istar.data.features import RollingFeatures, CumulativeFeatures
 from istar.data.schemas import FPLDatasetSchema, COLUMNS_TO_FPL_DATASET
 
 
@@ -144,7 +143,7 @@ def fpl_dataset(
 def training_data(fpl_dataset: pd.DataFrame) -> Output[pd.DataFrame]:
     """Create training data from the FPL datasets."""
     td = TrainingData(fpl_dataset=fpl_dataset)
-    training_data_pd = td.get_training_dataset()
+    training_data_pd = td.get_train_test_split()
 
     return Output(
         training_data_pd,
