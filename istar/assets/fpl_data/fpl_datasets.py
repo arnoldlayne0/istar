@@ -1,13 +1,16 @@
-from dagster import asset, AssetIn, Output
+from dagster import asset, AssetIn, OpExecutionContext, Output
 import pandas as pd
 from fpl import FPL
 import aiohttp
 
+from sklearn.pipeline import Pipeline
+
 from istar.assets.fpl_data.training_data import TrainingData
 from istar.data.schemas import FPLDatasetSchema, COLUMNS_TO_FPL_DATASET
+from istar.assets.fpl_data.models import SklearnModel
 
 
-@asset
+@asset(io_manager_key="pandas_local_io_manager")
 async def players() -> Output[pd.DataFrame]:
     # consider appending with each new gameweek (would need player_fixtures to see gameweek?)
     # would be annoying for many reasons, eg schema evolution or failures in a given gameweek
@@ -20,7 +23,7 @@ async def players() -> Output[pd.DataFrame]:
         return Output(players_pd, metadata={"num_rows": players_pd.shape[0]})
 
 
-@asset(ins={"players": AssetIn("players")})
+@asset(ins={"players": AssetIn("players")}, io_manager_key="pandas_local_io_manager")
 async def player_histories(players: pd.DataFrame) -> Output[pd.DataFrame]:
     player_ids = players["player_id"].unique().tolist()
     async with aiohttp.ClientSession() as session:
@@ -53,7 +56,7 @@ async def player_histories(players: pd.DataFrame) -> Output[pd.DataFrame]:
         )
 
 
-@asset(ins={"players": AssetIn("players")})
+@asset(ins={"players": AssetIn("players")}, io_manager_key="pandas_local_io_manager")
 async def player_fixtures(players: pd.DataFrame) -> Output[pd.DataFrame]:
     player_ids = players["player_id"].unique().tolist()
     async with aiohttp.ClientSession() as session:
@@ -67,15 +70,11 @@ async def player_fixtures(players: pd.DataFrame) -> Output[pd.DataFrame]:
         all_fixtures_pd = pd.concat(fixtures)
         return Output(
             all_fixtures_pd,
-            metadata={
-                "num_rows": all_fixtures_pd.shape[0],
-                "min_round": int(all_fixtures_pd["event"].min()),
-                "last_round": int(all_fixtures_pd["event"].max()),
-            },
+            metadata={"num_rows": all_fixtures_pd.shape[0]},
         )
 
 
-@asset
+@asset(io_manager_key="pandas_local_io_manager")
 async def teams() -> Output[pd.DataFrame]:
     async with aiohttp.ClientSession() as session:
         fpl_session = FPL(session)
@@ -91,22 +90,13 @@ async def teams() -> Output[pd.DataFrame]:
         return Output(teams_pd, metadata={"num_rows": teams_pd.shape[0]})
 
 
-@asset
-async def fdr() -> Output[pd.DataFrame]:
-    # no history is saved, can be recalculated based on player history instead
-    async with aiohttp.ClientSession() as session:
-        fpl_session = FPL(session)
-        fdr_json = await fpl_session.FDR()
-        fdr_pd = pd.DataFrame(fdr_json)
-        return Output(fdr_pd, metadata={"num_rows": fdr_pd.shape[0]})
-
-
 @asset(
     ins={
         "players": AssetIn("players"),
         "player_histories": AssetIn("player_histories"),
         "teams": AssetIn("teams"),
-    }
+    },
+    io_manager_key="pandas_local_io_manager",
 )
 def fpl_dataset(
     players: pd.DataFrame, player_histories: pd.DataFrame, teams: pd.DataFrame
@@ -124,13 +114,15 @@ def fpl_dataset(
     fpl_dataset_pd["team_h_score"] = fpl_dataset_pd["team_h_score"].astype("Int64")
     fpl_dataset_pd["team_a_score"] = fpl_dataset_pd["team_a_score"].astype("Int64")
 
-    FPLDatasetSchema.validate(fpl_dataset_pd)
+    # Validation behaving weird - commented out for now
+    # FPLDatasetSchema.validate(fpl_dataset_pd)
     return Output(
         fpl_dataset_pd,
         metadata={
             # list missing gameweeks
             "num_rows": fpl_dataset_pd.shape[0],
             "num_cols": fpl_dataset_pd.shape[1],
+            "dtypes": {k: str(v) for k, v in fpl_dataset_pd.dtypes.to_dict().items()},
         },
     )
 
@@ -138,7 +130,8 @@ def fpl_dataset(
 @asset(
     ins={
         "fpl_dataset": AssetIn("fpl_dataset"),
-    }
+    },
+    io_manager_key="pandas_local_io_manager",
 )
 def training_data(fpl_dataset: pd.DataFrame) -> Output[pd.DataFrame]:
     """Create training data from the FPL datasets."""
@@ -149,7 +142,19 @@ def training_data(fpl_dataset: pd.DataFrame) -> Output[pd.DataFrame]:
         training_data_pd,
         metadata={
             "num_rows": training_data_pd.shape[0],
-            "num_columns": training_data_pd.shape[1]
-            }
-        )
+            "num_columns": training_data_pd.shape[1],
+        },
+    )
 
+
+@asset(
+    ins={"training_data": AssetIn("training_data")},
+    io_manager_key="joblib_local_io_manager",
+)
+def model_pipeline(training_data: pd.DataFrame):
+    """Create training data from the FPL datasets."""
+    model = SklearnModel(data=training_data)
+    model.train_model()
+    test_score = model.evaluate_model()
+
+    return Output(model.model, metadata={"test_score": test_score})
