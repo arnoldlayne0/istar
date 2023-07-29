@@ -67,9 +67,11 @@ class TrainingData:
             stats_names=self.player_stats_names,
             from_future=False,
         ).assign(gameweek=lambda df: df.gameweek + 1)
+        # cumul_stats =
         return rolling_stats
 
     def _get_labels(self) -> pd.DataFrame:
+        # currently gives NANs for last N gws
         future_points = self._compute_rolling_stats(
             window=self.stats_window, stats_names=["total_points"], from_future=True
         )

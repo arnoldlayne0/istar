@@ -16,6 +16,7 @@ CATEGORICAL_FEATURES = [
 ]
 
 NUMERICAL_FEATURES = [
+    # "feature_{stats_window}"
     "bps_rolling_previous_5",
     "creativity_rolling_previous_5",
     "expected_goal_involvements_rolling_previous_5",

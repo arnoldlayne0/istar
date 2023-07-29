@@ -126,7 +126,6 @@ def fpl_dataset(
         },
     )
 
-
 @asset(
     ins={
         "fpl_dataset": AssetIn("fpl_dataset"),

@@ -6,7 +6,7 @@ from istar.resources.joblib_io_manager import local_simple_joblib_io_manager
 from istar.assets import fpl_dataset_assets
 
 BASE_PATH = os.getenv("ISTAR_BASE_PATH")
-CURRENT_SEASON = "season_22_23"
+CURRENT_SEASON = "season_23_24"
 
 RESOURCES = {
     "pandas_local_io_manager": local_simple_pandas_io_manager,
