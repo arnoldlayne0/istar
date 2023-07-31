@@ -5,6 +5,10 @@ import aiohttp
 
 from sklearn.pipeline import Pipeline
 
+from istar.assets.fpl_data.data_helpers import (
+    get_player_name_hash,
+    assign_effective_team_id,
+)
 from istar.assets.fpl_data.training_data import TrainingData
 from istar.data.schemas import FPLDatasetSchema, COLUMNS_TO_FPL_DATASET
 from istar.assets.fpl_data.models import SklearnModel
@@ -114,6 +118,12 @@ def fpl_dataset(
     fpl_dataset_pd["team_h_score"] = fpl_dataset_pd["team_h_score"].astype("Int64")
     fpl_dataset_pd["team_a_score"] = fpl_dataset_pd["team_a_score"].astype("Int64")
 
+    # create some new ids
+    fpl_dataset_pd["player_names_hash"] = fpl_dataset_pd.apply(
+        get_player_name_hash, axis=1
+    )
+    fpl_dataset_pd["effective_team_id"] = assign_effective_team_id(fpl_dataset_pd)
+
     # Validation behaving weird - commented out for now
     # FPLDatasetSchema.validate(fpl_dataset_pd)
     return Output(
@@ -126,6 +136,7 @@ def fpl_dataset(
         },
     )
 
+
 @asset(
     ins={
         "fpl_dataset": AssetIn("fpl_dataset"),
@@ -136,6 +147,8 @@ def training_data(fpl_dataset: pd.DataFrame) -> Output[pd.DataFrame]:
     """Create training data from the FPL datasets."""
     td = TrainingData(fpl_dataset=fpl_dataset)
     training_data_pd = td.get_train_test_split()
+    # save latest stats here?
+    # do the split in the model pipeline?
 
     return Output(
         training_data_pd,
@@ -157,3 +170,14 @@ def model_pipeline(training_data: pd.DataFrame):
     test_score = model.evaluate_model()
 
     return Output(model.model, metadata={"test_score": test_score})
+
+
+@asset(
+    ins={"player_fixtures": AssetIn("player_fixtures")},
+    io_manager_key="pandas_local_io_manager",
+)
+def predictions(player_fixtures: pd.DataFrame) -> Output[pd.DataFrame]:
+    # preprocess_fixture_data = PreprocessFixtureData(player_fixtures)
+    # load model
+    # predict
+    pass
