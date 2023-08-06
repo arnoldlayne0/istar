@@ -48,7 +48,7 @@ class ModifierEnum(Enum):
     chance_of_playing_next_round = 1
 
 
-class TrainingData:
+class PlayerStatistics:
     def __init__(self, fpl_dataset: pd.DataFrame):
         self.fpl_dataset = fpl_dataset
         self.player_stats_names = [e.name for e in PlayerStatsEnum]
@@ -61,83 +61,21 @@ class TrainingData:
             + [e.name for e in IdentifierEnum]
         ]
 
-    def _get_player_stats(self) -> pd.DataFrame:
+    def get_player_stats(self) -> pd.DataFrame:
         rolling_stats = self._compute_rolling_stats(
             window=self.stats_window,
             stats_names=self.player_stats_names,
             from_future=False,
-        ).assign(gameweek=lambda df: df.gameweek + 1)
+        )
         # cumul_stats =
         return rolling_stats
 
-    def _get_labels(self) -> pd.DataFrame:
-        # currently gives NANs for last N gws
-        future_points = self._compute_rolling_stats(
-            window=self.stats_window, stats_names=["total_points"], from_future=True
-        )
-        current_points = self.fpl_dataset[["player_id", "total_points", "gameweek"]]
-        label_weights = self._get_label_weights()
-        labels = future_points.merge(
-            current_points, on=["player_id", "gameweek"], how="inner"
-        ).merge(label_weights, on="gameweek", how="inner")
-        labels["weighted_label"] = labels["total_points"] * labels["weight"] + labels[
-            "total_points_rolling_next_5"
-        ] * (1 - labels["weight"])
-        return labels
-
-    def get_dataset(self) -> pd.DataFrame:
-        characteristics = self._get_characteristics()
-        player_stats = self._get_player_stats()
-        points_against_team = self._compute_points_by_team_and_element(
-            points_against=True
-        )
-        points_for_team = self._compute_points_by_team_and_element(points_against=False)
-        labels = self._get_labels()
-        dataset = (
-            characteristics.merge(
-                player_stats, on=["player_id", "gameweek"], how="inner"
-            )
-            .merge(labels, on=["player_id", "gameweek"], how="inner")
-            .merge(
-                points_against_team,
-                on=["gameweek", "opponent_team", "element_type"],
-                how="inner",
-            )
-            .merge(
-                points_for_team, on=["gameweek", "team_id", "element_type"], how="inner"
-            )
-        )
-        return dataset
-
-    def get_train_test_split(self, train_size=0.8) -> pd.DataFrame:
-        dataset = self.get_dataset()
-        conditions = [
-            (dataset["gameweek"] <= self.stats_window),
-            (dataset["gameweek"] > self.stats_window)
-            & (dataset["gameweek"] <= train_size * dataset["gameweek"].max()),
-            (dataset["gameweek"] > train_size * dataset["gameweek"].max()),
-        ]
-        choices = ["cold_start", "train", "test"]
-        dataset["set"] = np.select(conditions, choices)
-        return dataset
-
-    def _get_label_weights(self) -> pd.DataFrame:
-        max_gw = self.fpl_dataset.gameweek.max()
-        opening_gws = np.linspace(0.5, 1, 4)
-        before_reset_gws = np.linspace(0.25, 1, 5)
-        after_reset_gws = np.array([0.25] * 12)
-        weights = np.concatenate(
-            [
-                opening_gws,
-                before_reset_gws,
-                after_reset_gws,
-                before_reset_gws,
-                after_reset_gws,
-            ]
-        )[: max_gw + 1]
-        return pd.DataFrame({"gameweek": np.arange(1, max_gw + 1), "weight": weights})
-
     def _compute_rolling_stats(self, window, stats_names, from_future) -> pd.DataFrame:
+        """
+        Compute rolling stats for each player in the dataset.
+        Stats are inclusive, that is, for gameweek N,
+        rolling stats are computed from player data for gameweeks N, N-1, ..., N-window+1.
+        """
         sort_ascending = not from_future
         if from_future:
             prefix = "next"
@@ -185,9 +123,6 @@ class TrainingData:
         points_by_team_element_expanding = points_by_team_element_expanding.merge(
             points_by_team_element, on=["gameweek", f"{team}", "element_type"]
         ).drop(columns=["total_points"])
-        points_by_team_element_expanding["gameweek"] = (
-            points_by_team_element_expanding["gameweek"] + 1
-        )
         return points_by_team_element_expanding.rename(
             columns={"expanding_mean_points": f"total_points_{prefix}_team_element"}
         )

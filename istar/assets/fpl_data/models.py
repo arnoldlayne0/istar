@@ -6,7 +6,7 @@ from sklearn.pipeline import Pipeline, make_pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from xgboost import XGBRegressor
 
-from istar.assets.fpl_data.training_data import Label
+from istar.assets.fpl_data.training_data import LabelEnum
 
 CATEGORICAL_FEATURES = [
     "opponent_team",
@@ -38,7 +38,7 @@ class BaseModel:
 
 
 class SklearnModel:
-    def __init__(self, data: pd.DataFrame, label: Label = Label.total_points_current):
+    def __init__(self, data: pd.DataFrame, label: LabelEnum = LabelEnum.total_points_current):
         self.data = data
         self.label = label
 

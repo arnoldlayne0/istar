@@ -9,6 +9,7 @@ from istar.assets.fpl_data.data_helpers import (
     get_player_name_hash,
     assign_effective_team_id,
 )
+from istar.assets.fpl_data.player_stats import PlayerStatistics
 from istar.assets.fpl_data.training_data import TrainingData
 from istar.data.schemas import FPLDatasetSchema, COLUMNS_TO_FPL_DATASET
 from istar.assets.fpl_data.models import SklearnModel
@@ -133,6 +134,23 @@ def fpl_dataset(
             "num_rows": fpl_dataset_pd.shape[0],
             "num_cols": fpl_dataset_pd.shape[1],
             "dtypes": {k: str(v) for k, v in fpl_dataset_pd.dtypes.to_dict().items()},
+        },
+    )
+
+
+@asset(
+    ins={"fpl_dataset": AssetIn("fpl_dataset")},
+    io_manager_key="pandas_local_io_manager",
+)
+def player_stats(fpl_dataset: pd.DataFrame) -> Output[pd.DataFrame]:
+    """Create player stats from the FPL datasets."""
+    ps = PlayerStatistics(fpl_dataset=fpl_dataset)
+    player_stats_pd = ps.get_player_stats()
+    return Output(
+        player_stats_pd,
+        metadata={
+            "num_rows": player_stats_pd.shape[0],
+            "num_columns": player_stats_pd.shape[1],
         },
     )
 
