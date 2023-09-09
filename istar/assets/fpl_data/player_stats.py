@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 
 
-STATS_WINDOW = 5
+STATS_WINDOW = 1
 
 
 class PlayerCharacteristicsEnum(Enum):

@@ -1,6 +1,7 @@
 import hashlib
 
 import numpy as np
+import numpy.typing as npt
 import pandas as pd
 
 PROMOTED_TEAMS_22_23 = pd.DataFrame(
@@ -18,15 +19,14 @@ PROMOTED_TEAMS_23_24 = pd.DataFrame(
 )
 
 
-def assign_effective_team_id(df: pd.DataFrame) -> pd.DataFrame:
+def assign_effective_team_id(df: pd.DataFrame) -> npt.NDArray[np.int64]:
     conditions = [
         df["team_code"] == 91,
         df["team_code"] == 54,
         df["team_code"] == 17,
     ]
     choices = [90, 102, 49]
-    df["effective_team_id"] = np.select(conditions, choices, default=df["team_code"])
-    return df
+    return np.select(conditions, choices, default=df["team_code"])
 
 
 def get_player_name_hash(row: pd.Series) -> int:

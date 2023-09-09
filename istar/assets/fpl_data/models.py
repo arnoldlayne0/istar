@@ -6,7 +6,7 @@ from sklearn.pipeline import Pipeline, make_pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from xgboost import XGBRegressor
 
-from istar.assets.fpl_data.training_data import LabelEnum
+from istar.assets.fpl_data.training_data import LabelEnum, STATS_WINDOW, PlayerStatsEnum
 
 CATEGORICAL_FEATURES = [
     "opponent_team",
@@ -17,16 +17,16 @@ CATEGORICAL_FEATURES = [
 
 NUMERICAL_FEATURES = [
     # "feature_{stats_window}"
-    "bps_rolling_previous_5",
-    "creativity_rolling_previous_5",
-    "expected_goal_involvements_rolling_previous_5",
-    "expected_goals_conceded_rolling_previous_5",
-    "influence_rolling_previous_5",
-    "selected_by_percent_rolling_previous_5",
-    "threat_rolling_previous_5",
-    "total_points_rolling_previous_5",
-    "transfers_balance_rolling_previous_5",
-    "value_rolling_previous_5",
+    f"bps_rolling_previous_{STATS_WINDOW}",
+    f"creativity_rolling_previous_{STATS_WINDOW}",
+    f"expected_goal_involvements_rolling_previous_{STATS_WINDOW}",
+    f"expected_goals_conceded_rolling_previous_{STATS_WINDOW}",
+    f"influence_rolling_previous_{STATS_WINDOW}",
+    f"selected_by_percent_rolling_previous_{STATS_WINDOW}",
+    f"threat_rolling_previous_{STATS_WINDOW}",
+    f"total_points_rolling_previous_{STATS_WINDOW}",
+    f"transfers_balance_rolling_previous_{STATS_WINDOW}",
+    f"value_rolling_previous_{STATS_WINDOW}",
     "total_points_against_team_element",
     "total_points_by_team_element",
 ]

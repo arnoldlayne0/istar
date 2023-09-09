@@ -6,6 +6,7 @@ COLUMNS_FROM_PLAYERS_TO_FPL_DATASET = [
     "chance_of_playing_this_round",
     "element_type",
     "first_name",
+    "second_name",
     "player_id",
     "now_cost",
     "selected_by_percent",

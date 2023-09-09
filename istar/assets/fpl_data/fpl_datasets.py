@@ -61,21 +61,18 @@ async def player_histories(players: pd.DataFrame) -> Output[pd.DataFrame]:
         )
 
 
-@asset(ins={"players": AssetIn("players")}, io_manager_key="pandas_local_io_manager")
-async def player_fixtures(players: pd.DataFrame) -> Output[pd.DataFrame]:
-    player_ids = players["player_id"].unique().tolist()
+@asset(io_manager_key="pandas_local_io_manager")
+async def fixtures() -> Output[pd.DataFrame]:
     async with aiohttp.ClientSession() as session:
         fpl_session = FPL(session)
-        player_summaries = await fpl_session.get_player_summaries(
-            player_ids=player_ids, return_json=True
-        )
-        fixtures = []
-        for player_summary in player_summaries:
-            fixtures.append(pd.DataFrame(player_summary["fixtures"]))
-        all_fixtures_pd = pd.concat(fixtures)
+        all_fixtures = await fpl_session.get_fixtures(return_json=True)
+        fixtures_pd = pd.DataFrame(all_fixtures)
+        next_gameweek = fixtures_pd[fixtures_pd["started"] == False]["event"].min()
         return Output(
-            all_fixtures_pd,
-            metadata={"num_rows": all_fixtures_pd.shape[0]},
+            fixtures_pd,
+            metadata={
+                "num_rows": fixtures_pd.shape[0],
+                "next_gameweek": int(next_gameweek)},
         )
 
 
@@ -125,6 +122,11 @@ def fpl_dataset(
     )
     fpl_dataset_pd["effective_team_id"] = assign_effective_team_id(fpl_dataset_pd)
 
+    # TODO: add next fixture (fixtures later)
+    # fixtures_cross = players_to_join.merge(fixtures, how="cross")
+    # fixtures_inner = fixtures_cross[fixtures_cross.apply(lambda r: r["team"] == r["team_a"] or r["team"] == r["team_h"], axis=1)]
+    # fpl_dataset_pf.append(fixtures_inner, ignore_index=True
+
     # Validation behaving weird - commented out for now
     # FPLDatasetSchema.validate(fpl_dataset_pd)
     return Output(
@@ -158,15 +160,16 @@ def player_stats(fpl_dataset: pd.DataFrame) -> Output[pd.DataFrame]:
 @asset(
     ins={
         "fpl_dataset": AssetIn("fpl_dataset"),
+        "player_stats": AssetIn("player_stats"),
     },
     io_manager_key="pandas_local_io_manager",
 )
-def training_data(fpl_dataset: pd.DataFrame) -> Output[pd.DataFrame]:
+def training_data(fpl_dataset: pd.DataFrame, player_stats: pd.DataFrame) -> Output[pd.DataFrame]:
     """Create training data from the FPL datasets."""
+    # read stats here and join to other needed stuff
+    # and shift stats to match the labels
     td = TrainingData(fpl_dataset=fpl_dataset)
     training_data_pd = td.get_train_test_split()
-    # save latest stats here?
-    # do the split in the model pipeline?
 
     return Output(
         training_data_pd,
@@ -191,11 +194,11 @@ def model_pipeline(training_data: pd.DataFrame):
 
 
 @asset(
-    ins={"player_fixtures": AssetIn("player_fixtures")},
+    ins={"fixtures": AssetIn("fixtures")},
     io_manager_key="pandas_local_io_manager",
 )
-def predictions(player_fixtures: pd.DataFrame) -> Output[pd.DataFrame]:
-    # preprocess_fixture_data = PreprocessFixtureData(player_fixtures)
+def predictions(fixtures: pd.DataFrame) -> Output[pd.DataFrame]:
+    # preprocess_fixture_data = PreprocessFixtureData(fixtures)
     # load model
     # predict
     pass
